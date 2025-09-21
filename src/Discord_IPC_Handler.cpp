@@ -1,6 +1,6 @@
 #include "Discord_IPC_Handler.h"
 
-bool Discord_IPC_handler::discord_connect(const std::string &app_ID_param)
+bool Discord_IPC_handler::connect_to_discord(const std::string &app_ID_param)
 {
     if (connected)
     {
@@ -24,11 +24,12 @@ bool Discord_IPC_handler::discord_connect(const std::string &app_ID_param)
         fd = -1; //error state
     }
     std::cout << "Failed to connect to Discord IPC" << std::endl;
+    discord_disconnect();
     return false;
 }
 
 bool Discord_IPC_handler::set_activity(const std::string &state, const std::string &details, const std::string &largeImageKey, const std::string &largeImageText, bool record_time, int64_t discord_timestamp)
-{ //this function needs to be edited to handle blank parameters, and for us to have a timestamp parameter so we can begin session time recording at the start of the session
+{ //this function needs to be edited to handle blank parameters, and for us to have a timestamp parameter so we can start recording time on file switch, if the user wants it that way ;)
     if (!connected)
     {
         std::cout << "Not connected to Discord" << std::endl;
@@ -36,7 +37,7 @@ bool Discord_IPC_handler::set_activity(const std::string &state, const std::stri
     }
 
     int64_t nonce_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count(); //gives us the current time in milliseconds, we use this as the nonce we send to Discord (as using seconds can cause duplicate nonces when switching tabs, causing packets to be received out of order)
-    // Build JSON payload
+    //build JSON payload
     std::ostringstream json;
     json << R"({
         "cmd": "SET_ACTIVITY",
@@ -52,7 +53,7 @@ bool Discord_IPC_handler::set_activity(const std::string &state, const std::stri
                     "start": )" << discord_timestamp << R"(
                     })";
 
-    if (!largeImageKey.empty()) //TODO: this but for details, state and timestamp
+    if (!largeImageKey.empty()) //TODO: this but for details, state and timestamp, for user config
     {
         json << R"(,
                 "assets":
@@ -70,15 +71,16 @@ bool Discord_IPC_handler::set_activity(const std::string &state, const std::stri
             }
         },
     "nonce": ")" << nonce_timestamp << R"("
-    })";
+       })";
 
     std::string payload = json.str();
     auto packet = pack_message(OpCode::FRAME, payload); //packing our JSON command data to change our activity to the discord IPC socket
 
     ssize_t sent = send(fd, packet.data(), packet.size(), 0);
-    if (sent != static_cast<ssize_t>(packet.size()))
+    if (sent != static_cast<ssize_t>(packet.size())) //if packet didnt send (Didcord likely isnt running)
     {
         std::cout << "Failed to send activity" << std::endl;
+        discord_disconnect();
         return false;
     }
 
@@ -147,7 +149,6 @@ std::vector<uint8_t> Discord_IPC_handler::pack_message(OpCode opcode, const std:
     packet.push_back((length >> 16) & 0xFF);
     packet.push_back((length >> 24) & 0xFF);
 
-    // Add data
     packet.insert(packet.end(), data.begin(), data.end()); //finally, we insert the entire payload
 
     return packet;
@@ -236,4 +237,3 @@ bool Discord_IPC_handler::read_response()
     }
     return true;
 }
-
