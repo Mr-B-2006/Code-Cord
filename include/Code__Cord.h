@@ -30,7 +30,7 @@
 
 class Code__Cord : public cbToolPlugin
 {
-    private: //categorise these members properly :>
+    private:
         cbEditor *editor;
         const std::string Code__Cord_app_id = "1393546362997571634";
         wxTimer rate_limit;
