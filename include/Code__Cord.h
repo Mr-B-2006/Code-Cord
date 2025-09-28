@@ -32,7 +32,7 @@ class Code__Cord : public cbToolPlugin
 {
     private:
         cbEditor *editor;
-        const std::string Code__Cord_app_id = "1393546362997571634";
+        const std::string Code__Cord_app_id = getenv("DISCORD_APP_ID");
         wxTimer rate_limit;
         const int rate_limit_interval = 12000;
         wxString details_prefix = "Editing file: "; //a string to store our prefixes like "Working on: "
